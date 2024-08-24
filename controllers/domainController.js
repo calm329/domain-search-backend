@@ -1,7 +1,8 @@
 const namecheapService = require('../services/namecheapService');
 const xml2js = require('xml2js');
-const { getSuggetion } = require('../helpers/getSuggetion.js');
+const { getSuggestions } = require('../helpers/getSuggetion.js');
 const axios = require("axios");
+const domainModel = require("../models/domain.model.js");
 
 const generateDomainSuggestions = (keyword) => {
     const prefixes = ['my', 'the', 'best'];
@@ -61,13 +62,29 @@ exports.checkDomain = async (req, res) => {
 
 exports.searchSuggestions = async (req, res) => {
     const { keyword } = req.query;
-    console.log(keyword)
+    let suggestions;
+
     const domainTerm = keyword.replace(/\s+/g, '');
     try {
-        const suggestions = getSuggetion(domainTerm);
+        const db_suggetions = await domainModel.findOne({ keyword: domainTerm });
+        
+        if (db_suggetions) {
+            suggestions = db_suggetions?.response;
+        } else {
+            suggestions = await getSuggestions(domainTerm);
+
+            if (suggestions) {
+                await domainModel.create({
+                    keyword: domainTerm,
+                    response: suggestions,
+                });
+            };
+
+        };
+
         const avaiblity = await namecheapService.checkAvailability(domainTerm);
 
-        res.json({
+        return res.json({
             extentions: suggestions,
             avaiblity: avaiblity
         });
@@ -76,6 +93,24 @@ exports.searchSuggestions = async (req, res) => {
         res.status(500).send('Internal Server Error');
     };
 };
+
+// exports.searchSuggestions = async (req, res) => {
+//     const { keyword } = req.query;
+//     console.log(keyword)
+//     const domainTerm = keyword.replace(/\s+/g, '');
+//     try {
+//         const suggestions = getSuggetion(domainTerm);
+//         const avaiblity = await namecheapService.checkAvailability(domainTerm);
+
+//         res.json({
+//             extentions: suggestions,
+//             avaiblity: avaiblity
+//         });
+//     } catch (error) {
+//         console.error('Error in domain search:', error);
+//         res.status(500).send('Internal Server Error');
+//     };
+// };
 
 exports.registerDomain = async (req, res) => {
     const { domain, user } = req.body;

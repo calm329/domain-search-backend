@@ -3,11 +3,15 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const rateLimiter = require('./helpers/rateLimiter');
 const domainRoutes = require('./routes/domainRoutes');
+const mongoose = require("mongoose");
 require('dotenv').config();
-require('./cronJobs');
+// require('./cronJobs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+mongoose.connect(process.env.DB).then(() => console.log("MongoDB connected successfully!"))
+  .catch((error) => console.error("MongoDB connection error:", error));
 
 app.use(cors());
 app.use(bodyParser.json());
