@@ -1,16 +1,40 @@
-const cron = require('node-cron');
-const cacheHelper = require('./helpers/cacheHelper');
-const domainController = require('./controllers/domainController');
+const express = require('express');  
+const mongoose = require('mongoose');  
+const cron = require('node-cron');  
 
-const refreshPopularKeywords = async () => {
-    const popularKeywords = ['example', 'test', 'sample'];
-    for (const keyword of popularKeywords) {
-        const suggestions = domainController.searchSuggestions({ query: { keyword } });
-        await cacheHelper.set(keyword, JSON.stringify(suggestions), 86400);
-    }
-    console.log('Cron job: Refreshed cache for popular keywords');
-};
+const app = express();  
 
-cron.schedule('0 0 * * *', refreshPopularKeywords);
+// Connect to MongoDB  
+mongoose.connect(process.env.DB, {  
+    useNewUrlParser: true,  
+    useUnifiedTopology: true,  
+});  
 
-console.log('Cron jobs scheduled.');
+// Define a simple schema and model (customize based on your requirements)  
+const DataSchema = new mongoose.Schema({  
+    // Define your schema  
+    timestamp: { type: Date, default: Date.now },  
+});  
+const DataModel = mongoose.model('Data', DataSchema);  
+
+// Clean up old data (customize as needed)  
+async function cleanDatabase() {  
+    try {  
+        const result = await DataModel.deleteMany({  
+            timestamp: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // For example, older than 30 days  
+        });  
+        console.log(`Deleted ${result.deletedCount} old records`);  
+    } catch (err) {  
+        console.error('Error cleaning database:', err);  
+    }  
+}  
+
+// Schedule the job to run at midnight every day  
+cron.schedule('0 0 * * *', () => {  
+    console.log('Running database cleanup');  
+    cleanDatabase();  
+});  
+
+app.listen(3000, () => {  
+    console.log('Server is running on port 3000');  
+});
