@@ -50,21 +50,23 @@ exports.searchSuggestions = async (req, res) => {
 
     const domainTerm = keyword.replace(/\s+/g, '');
     try {
-        const db_suggetions = await domainModel.findOne({ keyword: domainTerm });
+        // const db_suggetions = await domainModel.findOne({ keyword: domainTerm });
 
-        if (db_suggetions) {
-            suggestions = db_suggetions?.response;
-        } else {
-            suggestions = await getSuggestions(domainTerm);
+        // if (db_suggetions) {
+        //     suggestions = db_suggetions?.response;
+        // } else {
+        //     suggestions = await getSuggestions(domainTerm);
 
-            if (suggestions) {
-                await domainModel.create({
-                    keyword: domainTerm,
-                    response: suggestions,
-                });
-            };
+        //     if (suggestions) {
+        //         await domainModel.create({
+        //             keyword: domainTerm,
+        //             response: suggestions,
+        //         });
+        //     };
 
-        };
+        // };
+
+        suggestions = await getSuggestions(domainTerm);
 
         const avaiblity = await namecheapService.checkAvailability(domainTerm);
 

@@ -1,5 +1,7 @@
 const Groq = require("groq-sdk");
 const nlp = require('compromise');
+const axios = require("axios");
+const xml2js = require('xml2js');
 const predefinedData = require('./domain_extensions/unknown.json'); // Fallback data  
 
 // Load other JSON data dynamically as needed  
@@ -83,6 +85,37 @@ async function getAiGeneratedSuggestions(term) {
 const getSuggestions = async (word) => {
     const predefinedSuggestions = getPredefinedSuggestions(word);
     const aiSuggestions = await getAiGeneratedSuggestions(word);
+    // const allSuggestions = aiSuggestions.map((item) => `${item}.com`).join(",");
+
+    // try {
+    //     const response = await axios.get('https://api.namecheap.com/xml.response', {
+    //         params: {
+    //             ApiUser: process.env.API_USERNAME,
+    //             ApiKey: process.env.API_KEY,
+    //             UserName: process.env.API_USERNAME,
+    //             Command: 'namecheap.domains.check',
+    //             ClientIp: "62.146.225.35",
+    //             DomainList: allSuggestions,
+    //         },
+    //     });
+
+    //     xml2js.parseString(response.data, (err, result) => {
+    //         if (err) {
+    //             console.error('Error parsing XML:', err);
+    //         };
+
+    //         const apiResponse = result.ApiResponse;
+    //         console.log(result.ApiResponse.Errors[0].Error[0])
+    //         if (apiResponse?.CommandResponse?.[0]?.DomainCheckResult) {
+    //             const domainCheckResult = apiResponse.CommandResponse[0].DomainCheckResult;
+    //             console.log(domainCheckResult?.length);
+    //         } else {
+    //             console.log('Domain check result not found in response');
+    //         };
+    //     });
+    // } catch (error) {
+    //     console.log("error")
+    // }
 
     // AI suggestions on top and predefined ones below  
     return [...aiSuggestions, ...predefinedSuggestions];
