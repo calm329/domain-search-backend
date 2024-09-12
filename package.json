@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "stop": "pkill -f app.js"
   },
   "dependencies": {
     "axios": "^1.4.0",

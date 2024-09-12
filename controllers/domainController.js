@@ -1,92 +1,96 @@
-const namecheapService = require('../services/namecheapService');
-const xml2js = require('xml2js');
-const { getSuggestions } = require('../helpers/getSuggetion.js');
-const axios = require("axios");
-const domainModel = require("../models/domain.model.js");
+// Import required dependencies and modules  
+const { getSuggestions } = require('../helpers/getSuggestion.js'); // Corrected the typo in the file path  
+const axios = require("axios");  
 
-exports.checkDomain = async (req, res) => {
-    const { domainName } = req.params;
+// Get WhoAPI credentials from environment variables  
+const WHOAPI_KEY = process.env.WHOAPI_KEY;  
 
-    try {
-        const response = await axios.get('https://api.namecheap.com/xml.response', {
-            params: {
-                ApiUser: process.env.API_USERNAME,
-                ApiKey: process.env.API_KEY,
-                UserName: process.env.API_USERNAME,
-                Command: 'namecheap.domains.check',
-                ClientIp: "62.146.225.35",
-                DomainList: `${domainName}.com`,
-            },
-        });
+// Function to check the availability of domains using WhoAPI  
+async function checkAvailability(domains) {  
+    const url = 'https://api.whoapi.com/'; // WhoAPI endpoint  
 
-        xml2js.parseString(response.data, (err, result) => {
-            if (err) {
-                console.error('Error parsing XML:', err);
-                return res.status(500).send('Error parsing response');
-            };
+    // Create an array of promises  
+    const requests = domains.map(domainObj => {  
+        return axios.get(url, {  
+            params: {  
+                domain: `${domainObj.domain}.com`, // Ensure it's a full domain name  
+                r: 'taken',  
+                apikey: WHOAPI_KEY  
+            }  
+        });  
+    });  
 
-            const apiResponse = result.ApiResponse;
-            if (apiResponse?.CommandResponse?.[0]?.DomainCheckResult) {
-                const domainCheckResult = apiResponse.CommandResponse[0].DomainCheckResult[0];
-                const isAvailable = domainCheckResult.$.Available === 'true';
+    try {  
+        // Wait for all requests to complete  
+        const responses = await Promise.all(requests);  
 
-                return res.send({
-                    domain: domainName,
-                    available: isAvailable,
-                });
-            } else {
-                return res.status(500).send('Domain check result not found in response');
-            }
-        });
-    } catch (error) {
-        console.error('Error details:', error.response ? error.response.data : error.message);
-        return res.status(500).send('Error communicating with Namecheap API');
-    }
-};
+        // Map the responses to desired output format  
+        const results = responses.map(response => {  
+            const data = response.data;  
+            return { domain: data.domain || response.config.params.domain, available: !data.taken };  
+        });  
 
-exports.searchSuggestions = async (req, res) => {
-    const { keyword } = req.query;
-    let suggestions;
+        return results;  
 
-    const domainTerm = keyword.replace(/\s+/g, '');
-    try {
-        // const db_suggetions = await domainModel.findOne({ keyword: domainTerm });
+    } catch (error) {  
+        console.error('Error:');  
+        throw new Error('Error communicating with WhoAPI');  
+    }  
+}  
 
-        // if (db_suggetions) {
-        //     suggestions = db_suggetions?.response;
-        // } else {
-        //     suggestions = await getSuggestions(domainTerm);
+// Controller function for API endpoint to check a single domain  
+exports.checkDomain = async (req, res) => {  
+    const { domainName } = req.params;  
 
-        //     if (suggestions) {
-        //         await domainModel.create({
-        //             keyword: domainTerm,
-        //             response: suggestions,
-        //         });
-        //     };
+    try {  
+        const response = await checkAvailability([{ domain: domainName }]);  
+        const isAvailable = response[0] && response[0].available;  
 
-        // };
+        res.send({  
+            domain: domainName,  
+            available: isAvailable,  
+        });  
+    } catch (error) {  
+        console.error('Error in domain check:', error);  
+        res.status(500).send('Internal Server Error');  
+    }  
+};  
 
-        suggestions = await getSuggestions(domainTerm);
+// Controller function for API endpoint to search domain suggestions and check their availability  
+exports.searchSuggestions = async (req, res) => {  
+    const { keyword } = req.query;  
 
-        const avaiblity = await namecheapService.checkAvailability(domainTerm);
+    const domainTerm = keyword.replace(/\s+/g, '');  
+    try {  
+        // Get domain name suggestions based on the keyword  
+        const suggestions = await getSuggestions(domainTerm);  
+        console.log('suggestions', suggestions)
+        // Check the availability of the suggested domain names  
+        const availabilityResponse = await checkAvailability(suggestions.map(s => ({ domain: s })));  
+        console.log('availabilityResponse:', availabilityResponse)
+        // Filter and get only the available domain names  
+        const availableSuggestions = availabilityResponse  
+            .filter(result => result.available)  
+            .map(result => result.domain);  
 
-        return res.json({
-            extentions: suggestions,
-            avaiblity: avaiblity
-        });
-    } catch (error) {
-        console.error('Error in domain search:', error);
-        res.status(500).send('Internal Server Error');
-    };
-};
+        res.json({  
+            suggestions: availableSuggestions,  
+        });  
+        console.log('availablesuggestions:', availableSuggestions)
+    } catch (error) {  
+        console.error('Error in domain search');  
+        res.status(500).send('Internal Server Error');  
+    }  
+};  
 
-exports.registerDomain = async (req, res) => {
-    const { domain, user } = req.body;
-    try {
-        const registrationResult = await namecheapService.registerDomain(domain, user);
-        res.json(registrationResult);
-    } catch (error) {
-        console.error('Error in domain registration:', error);
-        res.status(500).send('Internal Server Error');
-    }
+// Controller function for API endpoint to register a domain  
+exports.registerDomain = async (req, res) => {  
+    const { domain, user } = req.body;  
+    try {  
+        const registrationResult = await namecheapService.registerDomain(domain, user);  
+        res.json(registrationResult);  
+    } catch (error) {  
+        console.error('Error in domain registration:', error);  
+        res.status(500).send('Internal Server Error');  
+    }  
 };
