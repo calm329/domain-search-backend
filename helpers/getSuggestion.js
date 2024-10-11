@@ -1,25 +1,19 @@
-const Groq = require("groq-sdk");  
+const axios = require('axios');  
 const nlp = require('compromise');  
-const axios = require("axios");  
-const xml2js = require('xml2js');  
 const predefinedData = require('./domain_extensions/unknown.json'); // Fallback data  
-
-// Load other JSON data dynamically as needed  
 const peopleData = require('./domain_extensions/people.json');  
 const placeData = require('./domain_extensions/place.json');  
 const organizationData = require('./domain_extensions/organizations.json');  
 
-const apiKeys = [  
-    process.env.GROQ_API_KEY_1,  
-    process.env.GROQ_API_KEY_2,  
-];  
+const apiKey = [  
+    process.env.AIML_API_KEY,  
+];    
+const baseURL = "https://api.aimlapi.com/v1";  
 
-let currentApiKeyIndex = 0;  
-
-function rotateApiKey() {  
-    currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;  
-    return apiKeys[currentApiKeyIndex];  
-}  
+const rotateApiKey = () => {  
+    // Implement if you have multiple keys  
+    return apiKey;  // for now, return the same key  
+};  
 
 const getPredefinedSuggestions = (word) => {  
     const doc = nlp(word);  
@@ -32,61 +26,56 @@ const getPredefinedSuggestions = (word) => {
     } else if (doc.organizations().length > 0) {  
         data = organizationData;  
     } else {  
-        data = predefinedData; // Default fallback  
+        data = predefinedData;  
     }  
 
-    // Replace the placeholder "$" with the actual word  
     const suggestions = data.map(s => s.replace(/\$/g, word));  
 
     return suggestions;  
 };  
 
 async function getAiGeneratedSuggestions(term) {  
-    return new Promise(async (resolve, reject) => {  
-        let apiKey = apiKeys[currentApiKeyIndex];  
-        const groq = new Groq({ apiKey });  
+    const prompt = `You are a helpful assistant that generates creative and meaningful website domain names. Given a keyword, generate exactly 100 available domain names that are not taken yet by adding related keywords both in front of and behind the provided keyword, no space between and without the TLD. Ensure that the domains reflect the essence of the keyword and are creatively relevant. Mix the placement of related keywords in both positions (before and after) for variety. Domain Name should not include words like 'for', 'and', 'to', 'of', 'or'. Sort the domains by popularity, with the most popular ones listed first. The response should be in the following structure:   
+      
+      """  
+      {  
+      suggestions : ["domain1", "domain2", "domain3", ...]  
+      }  
+      """  
+      
+      Ensure the output is a valid JSON. The keyword is '${term}'.`;  
 
-        const prompt = `You are a helpful assistant that generates creative and meaningful website domain names. Given a keyword, generate exact 100 domain names by adding related keywords both in front of and behind the provided keyword, no space between and without the TLD. Ensure that the domains reflect the essence of the keyword and are creatively relevant. Mix the placement of related keywords in both positions (before and after) for variety. Sort the domains by popularity, with the most popular ones listed first. The response should be in the following structure:  
-        
-        """  
-        {  
-        suggestions : ["domain1", "domain2", "domain3", ...]  
-        }  
-        """  
-        
-        Ensure the output is a valid JSON`;  
-
-        const params = {  
+    try {  
+        const response = await axios.post(`${baseURL}/chat/completions`, {  
             messages: [  
-                { role: 'system', content: prompt },  
-                { role: 'user', content: term },  
+                { role: 'user', content: prompt },  
             ],  
-            model: 'llama-3.1-70b-versatile',  
-            response_format: { type: "json_object" },  
-        };  
+            model: 'claude-3-5-sonnet-20240620',  
+            temperature: 0.7,  
+            max_tokens: 4096,  
+        }, {  
+            headers: { Authorization: `Bearer ${rotateApiKey()}` }  
+        });  
 
-        try {  
-            const chatCompletion = await groq.chat.completions.create(params);  
-            const allDomains = chatCompletion.choices[0].message.content;  
+        const data = response.data.choices[0].message.content;  
+        return JSON.parse(data).suggestions;  
 
-            resolve(JSON.parse(allDomains).suggestions);  
-        } catch (err) {  
-            if (err.status === 429) {  
-                apiKey = rotateApiKey();  
-                console.log(`API key rate limit reached. Switched to a new API key: ${apiKey}`);  
-                resolve(getAiGeneratedSuggestions(term));  
-            } else {  
-                reject(err);  
-            };  
+    } catch (error) {  
+        if (error.response && error.response.status === 429) {  
+            console.log('Rate limit reached, handling logic needed.');  
+            // Add logic if rotating through multiple keys, etc.  
         }  
-    });  
+        throw error;  
+    }  
 }  
 
 const getSuggestions = async (word) => {  
     const predefinedSuggestions = getPredefinedSuggestions(word);  
     const aiSuggestions = await getAiGeneratedSuggestions(word);  
-    // AI suggestions on top and predefined ones below  
     return [...aiSuggestions, ...predefinedSuggestions];  
 };  
 
-module.exports = { getSuggestions };
+module.exports = { getSuggestions };  
+
+// Usage example  
+// getSuggestions('animal').then(suggestions => console.log(suggestions));
