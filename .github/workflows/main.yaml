@@ -36,7 +36,7 @@ jobs:
           DIR="/home/ubuntu/server"
           if [ ! -d "$DIR" ]; then
             mkdir server && \
-            git clone https://github.com/mightyeagle329/domain-search-backend.git server && \
+            git clone https://github.com/calm329/domain-search-backend.git server && \
             cd server && \
             npm i
           else
