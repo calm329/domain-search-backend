@@ -24,12 +24,12 @@ jobs:
           echo "Connecting as ${USER_NAME}@${HOSTNAME} with private key:"  
           ssh -v -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << 'ENDSSH'  
             echo "Connected to EC2"
-
+            ls /home/ubuntu
             if ! command -v npm &> /dev/null
             then
               echo "npm not found"
             fi
-
+            
             DIR="/home/ubuntu/server"  
             if [ ! -d "$DIR" ]; then  
               mkdir server && \
@@ -39,8 +39,8 @@ jobs:
             else  
               cd server  
               git fetch --all && \
-              git reset --hard origin/master && \
-              git pull origin master  
+              git reset --hard origin/main && \
+              git pull origin main  
               npm i  
             fi  
 
