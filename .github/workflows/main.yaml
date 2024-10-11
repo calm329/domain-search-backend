@@ -23,7 +23,12 @@ jobs:
           echo "Attempt to connect to EC2"  
           echo "Connecting as ${USER_NAME}@${HOSTNAME} with private key:"  
           ssh -v -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << 'ENDSSH'  
-            echo "Connected to EC2"  
+            echo "Connected to EC2"
+
+            if ! command -v npm &> /dev/null
+            then
+              echo "npm not found"
+            fi
 
             DIR="/home/ubuntu/server"  
             if [ ! -d "$DIR" ]; then  
