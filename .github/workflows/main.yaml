@@ -1,48 +1,51 @@
-name: CI  
+name: CI
 
-on:  
-  push:  
-    branches: [ main ]  
-  workflow_dispatch:  
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-jobs:  
-  build:  
-    runs-on: ubuntu-latest  
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    steps:  
-      - uses: actions/checkout@v3  
+    steps:
+    - uses: actions/checkout@v3
 
-      - name: Deploy in EC2  
-        env:  
-            PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY  }}  
-            HOSTNAME: ${{ secrets.HOSTNAME  }}  
-            USER_NAME: ${{ secrets.USER_NAME  }}  
+    - name: Deploy in EC2
+      env:
+          PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY  }}
+          HOSTNAME: ${{ secrets.HOSTNAME  }}
+          USER_NAME: ${{ secrets.USER_NAME  }}
 
-        run: |  
-          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key  
-          echo "Attempt to connect to EC2"  
-          echo "Connecting as ${USER_NAME}@${HOSTNAME} with private key:"  
-          ssh -v -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << 'ENDSSH'  
-            echo "Connected to EC2"
-            ls /home/ubuntu
-            if ! command -v npm &> /dev/null
-            then
-              echo "npm not found"
-            fi
-            
-            DIR="/home/ubuntu/server"  
-            if [ ! -d "$DIR" ]; then  
-              mkdir server && \
-              git clone https://github.com/calm329/domain-search-backend.git server && \
-              cd server && \
-              npm i  
-            else  
-              cd server  
-              git fetch --all && \
-              git reset --hard origin/main && \
-              git pull origin main  
-              npm i  
-            fi  
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+        echo "Attempt to connect to EC2"
+        echo "Connecting as ${USER_NAME}@${HOSTNAME} with private key:"
+        ssh -v -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << 'ENDSSH'
+          echo "Connected to EC2"
+          
+          # Add Node.js to the path if not available
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # Load NVM if installed
+          if ! command -v npm &> /dev/null
+          then
+            echo "npm not found, trying to load via nvm"
+          fi
 
-            npm start  
-          ENDSSH
+          DIR="/home/ubuntu/server"
+          if [ ! -d "$DIR" ]; then
+            mkdir server && \
+            git clone https://github.com/mightyeagle329/domain-search-backend.git server && \
+            cd server && \
+            npm i
+          else
+            cd server
+            git fetch --all && \
+            git reset --hard origin/main && \
+            git pull origin main
+            npm i
+          fi
+
+          npm start
+        ENDSSH
